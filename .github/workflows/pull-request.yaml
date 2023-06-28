@@ -27,3 +27,4 @@ jobs:
         env: TEST_SECRET: ${{ secrets.TEST }}
         run: |
           echo "my test secret $TEST_SECRET"
+          echo "my super secret $TEST_SECRET"
