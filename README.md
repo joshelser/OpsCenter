@@ -1,6 +1,6 @@
 # OpsCenter for Snowflake
 
-blah 
+blah 2
 This is a Snowflake Native Application (using the v2 apis). It provides various reports around Snowflake consumption as well as Labels to categorize queries into workloads and Probes to automatically monitor and cancel and/or email on queries.
 
 
