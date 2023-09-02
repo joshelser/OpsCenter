@@ -15,6 +15,37 @@ jobs:
           python-version: '3.8'
           cache: 'pip'
       - uses: pre-commit/action@v3.0.0
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: recursive
+      - uses: s-weigand/setup-conda@v1
+        with:
+          activate-conda: false
+          update-conda: true
+          python-version: '3.8'
+      - name: Activate conda env
+        run: |
+          conda env create -f test/environment.yml	
+          conda activate opscenter-test
+      - name: Get suffix
+        id: shell-command
+        run:
+          echo SUFFIX=$(echo ${GITHUB_HEAD_REF} | sed "s/\./_/g" | sed "s/-/_/g" | sed "s\/\_\g")_${GITHUB_RUN_ID} >> $GITHUB_ENV
+      - name: Make snowsql config
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          OPSCENTER_DATABASE: "DATABASE_CYPRESS_{{ env.SUFFIX }}"
+        run: |
+          mkdir $HOME/.snowsql
+          envsubst < deploy/opscenter.config > $HOME/.snowsql/config
+      - name: Run pytests
+        run: python -m pytest unit --profile opscenter
   test-deploy:
     runs-on: ubuntu-latest
     steps:

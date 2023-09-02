@@ -1,0 +1,7 @@
+name: opscenter-test
+channels:
+- snowflake
+dependencies:
+- python=3.8
+- pytest
+- snowflake-snowpark-python=1.5.1
