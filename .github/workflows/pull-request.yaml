@@ -24,13 +24,13 @@ jobs:
           submodules: recursive
       - uses: s-weigand/setup-conda@v1
         with:
-          activate-conda: false
           update-conda: true
-          python-version: '3.8'
+          python-version: 3.8
       - name: Activate conda env
         run: |
           conda env create -f test/environment.yml	
-          conda activate opscenter-test
+          # `conda activate` doesn't work without restarting the shell
+          source activate opscenter-test
       - name: Get suffix
         id: shell-command
         run:
