@@ -17,22 +17,19 @@ jobs:
       - uses: pre-commit/action@v3.0.0
   unit-tests:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        # conda profile activation requires a login shell
-        shell: bash -el {0}
     steps:
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           submodules: recursive
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: actions/setup-python@v3
         with:
-          activate-environment: sf_env
-          environment-file: app/ui/environment.yml
-          python-version: 3.8
-      - name: Install test dependencies
-        run: conda install pytest
+          python-version: '3.8'
+          cache: 'pip'
+      - name: install dependencies
+        run: |
+          pip install poetry
+          poetry install
       - name: Make unique names for this job
         id: shell-command
         run: |
@@ -52,6 +49,9 @@ jobs:
       - name: Run pytests
         run: cd test && python -m pytest unit --profile opscenter
       - name: Cleanup Snowflake database
+        run: python deploy/cypress_teardown.py --profile opscenter
+      - name: Cleanup Snowflake database
+        if: failure()
         run: python deploy/cypress_teardown.py --profile opscenter
   test-deploy:
     runs-on: ubuntu-latest
