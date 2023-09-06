@@ -45,14 +45,14 @@ jobs:
           mkdir $HOME/.snowsql
           envsubst < deploy/opscenter.config > $HOME/.snowsql/config
       - name: Run deploy/devdeploy.py (without triggering materializations)
-        run: python deploy/devdeploy.py --profile opscenter --skip-finish-setup
+        run: poetry run python deploy/devdeploy.py --profile opscenter --skip-finish-setup
       - name: Run pytests
-        run: cd test && python -m pytest unit --profile opscenter
+        run: cd test && poetry run python -m pytest unit --profile opscenter
       - name: Cleanup Snowflake database
-        run: python deploy/cypress_teardown.py --profile opscenter
+        run: poetry run python deploy/cypress_teardown.py --profile opscenter
       - name: Cleanup Snowflake database
         if: failure()
-        run: python deploy/cypress_teardown.py --profile opscenter
+        run: poetry run python deploy/cypress_teardown.py --profile opscenter
   test-deploy:
     runs-on: ubuntu-latest
     steps:
