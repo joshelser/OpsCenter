@@ -37,7 +37,7 @@ jobs:
         id: shell-command
         run: |
           SUFFIX=$(echo ${GITHUB_HEAD_REF} | sed "s/\./_/g" | sed "s/-/_/g" | sed "s\/\_\g")_${GITHUB_RUN_ID}
-          echo "OPSCENTER_DATABASE=UNIT_TESTS_$SUFFIX" >> $GITHUB_ENV
+          echo "OPSCENTER_DATABASE=OPSCENTER_PR_$SUFFIX" >> $GITHUB_ENV
       - name: Make snowsql config
         env:
           # Also uses OPSCENTER_DATABASE from above
@@ -66,6 +66,20 @@ jobs:
           pip install poetry
           poetry config virtualenvs.in-project true
           poetry install
+      - name: Make unique names for this job
+        id: shell-command
+        run: |
+          SUFFIX=$(echo ${GITHUB_HEAD_REF} | sed "s/\./_/g" | sed "s/-/_/g" | sed "s\/\_\g")_${GITHUB_RUN_ID}
+          echo "OPSCENTER_DATABASE=OPSCENTER_PR_$SUFFIX" >> $GITHUB_ENV
+      - name: Make snowsql config
+        env:
+          # Also uses OPSCENTER_DATABASE from above
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        run: |
+          mkdir $HOME/.snowsql
+          envsubst < deploy/opscenter.config > $HOME/.snowsql/config
       - name: Run pytests
         run: cd test && poetry run python -m pytest unit --profile opscenter
   cypress-tests:
@@ -85,6 +99,20 @@ jobs:
           pip install poetry
           poetry config virtualenvs.in-project true
           poetry install
+      - name: Make unique names for this job
+        id: shell-command
+        run: |
+          SUFFIX=$(echo ${GITHUB_HEAD_REF} | sed "s/\./_/g" | sed "s/-/_/g" | sed "s\/\_\g")_${GITHUB_RUN_ID}
+          echo "OPSCENTER_DATABASE=OPSCENTER_PR_$SUFFIX" >> $GITHUB_ENV
+      - name: Make snowsql config
+        env:
+          # Also uses OPSCENTER_DATABASE from above
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USERNAME: ${{ secrets.SNOWFLAKE_USERNAME }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        run: |
+          mkdir $HOME/.snowsql
+          envsubst < deploy/opscenter.config > $HOME/.snowsql/config
       - name: run streamlit
         run: "poetry run streamlit run app/ui/Home.py &"
       - name: Set cypress env variables
