@@ -458,3 +458,6 @@ def test_migrate_predefined_labels(conn, timestamp_string):
 
     sql = "delete from internal.config where KEY = 'LABELS_INITED'"
     run_sql(conn, sql)
+
+def test_josh():
+    assert True
