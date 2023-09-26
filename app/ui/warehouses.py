@@ -209,12 +209,13 @@ class Warehouses(Container):
         [i.update(connection.Connection.get(), i) for i in new_warehouses]
 
     def list(self):
-        st.button(
-            "Clear State (TODO, for testing only)",
-            on_click=lambda: connection.execute(
-                f"delete from internal.{WarehouseSchedules.table_name}"
-            ),
-        )
+        if False:
+            st.button(
+                "Clear State (TODO, for testing only)",
+                on_click=lambda: connection.execute(
+                    f"delete from internal.{WarehouseSchedules.table_name}"
+                ),
+            )
         warehouses = connection.execute_with_cache(
             """
         begin
@@ -271,5 +272,6 @@ class Warehouses(Container):
         )
         build_table(self.base_cls, data_we, cbs, has_empty=True)
 
-        st.write("For testing only")
-        st.write(all_data)
+        if False:
+            st.write("For testing only")
+            st.write(all_data)
