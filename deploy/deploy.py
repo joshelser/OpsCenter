@@ -50,7 +50,8 @@ def _clear_stage(cur):
     cur.execute(f"REMOVE {FULL_STAGE} pattern='.*';")
 
 
-testing_pages = {"06_WarehouseSchedule.py"}
+# testing_pages = {"06_WarehouseSchedule.py"}
+testing_pages = {}
 
 
 def _sync_local_to_stage(cur):
