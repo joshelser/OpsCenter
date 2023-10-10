@@ -179,7 +179,7 @@ def delete_label(session, name):
     return delete_entity(session, 'LABEL', name)
 $$;
 
--- TODO Differentiate from ungrouped labels  by having "AND IS_DYNAMIC" in the delete clause
+-- deprecated, can use the normal delete_label(text)
 CREATE OR REPLACE PROCEDURE ADMIN.DELETE_DYNAMIC_LABEL(name text)
     RETURNS text
     language python
@@ -269,16 +269,16 @@ BEGIN
         from (values
             ('dbt Models', 'tools.qtag_value(qtag_filter, \'dbt\', \'node_id\')'),
             ('qtag Sources', 'tools.qtag_sources(qtag_filter)[0]')
-             )) s (group_name, condition)
-    ON t.group_name = s.group_name
+             )) s (name, condition)
+    ON t.name = s.name
     WHEN MATCHED THEN
     UPDATE
-        SET t.GROUP_NAME = s.group_name, t.GROUP_RANK = NULL, t.CONDITION = s.condition, t.LABEL_MODIFIED_AT = current_timestamp(),
+        SET t.NAME = s.name, t.GROUP_NAME = null, t.GROUP_RANK = NULL, t.CONDITION = s.condition, t.LABEL_MODIFIED_AT = current_timestamp(),
             T.IS_DYNAMIC = TRUE, T.ENABLED = TRUE
     WHEN NOT MATCHED THEN
     INSERT
         ("NAME", "GROUP_NAME", "GROUP_RANK", "LABEL_CREATED_AT", "CONDITION", "LABEL_MODIFIED_AT", "IS_DYNAMIC", "ENABLED")
-        VALUES (NULL, s.group_name, NULL,  current_timestamp(), s.condition, current_timestamp(), TRUE, TRUE);
+        VALUES (s.name, NULL, NULL,  current_timestamp(), s.condition, current_timestamp(), TRUE, TRUE);
 
     RETURN NULL;
 EXCEPTION
