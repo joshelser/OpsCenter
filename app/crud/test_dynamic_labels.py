@@ -17,15 +17,15 @@ def test_dynamic_label(session):
         dl.get("condition")
     ), "Unexpected dynamic label condition query"
     assert session._sql[1].lower() == _expected_name_check_query(
-        dl.get("group_name")
+        dl.get("name")
     ), "Unexpected label name query"
 
 
-def test_name_is_disallowed(session):
+def test_group_name_is_disallowed(session):
     # Name is disallowed for dynamic labels, they use group_name
     with pytest.raises(ValueError):
         dl = _get_dynamic_label()
-        dl["name"] = "Something"
+        dl["group_name"] = "Something"
         Label.parse_obj(dl)
 
 

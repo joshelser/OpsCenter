@@ -20,10 +20,7 @@ def _get_label(
         enabled=True,
         is_dynamic=dynamic,
     )
-    if dynamic:
-        del d["name"]
-        d["group_name"] = name
-    elif group_name and group_rank:
+    if group_name and group_rank:
         d["group_name"] = group_name
         d["group_rank"] = group_rank
 
@@ -130,8 +127,8 @@ def test_create_table(session):
 def test_from_pandas():
     Label.parse_obj(
         {
-            "name": None,
-            "group_name": "dbt Models",
+            "name": "dbt Models",
+            "group_name": None,
             "group_rank": math.nan,
             "label_created_at": pd.Timestamp("2023-09-20 09:55:43.469000"),
             "condition": "tools.qtag_value(qtag_filter, 'dbt', 'node_id')",

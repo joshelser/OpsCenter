@@ -43,18 +43,15 @@ class Label(BaseOpsCenterModel):
                 # check if the grouped label's name conflict with :
                 #  1) another label in the same group,
                 #  2) or an ungrouped label's name.
-                #  3) another dynamic group name
                 count = txn.sql(
                     """
                     SELECT COUNT(*) FROM INTERNAL.LABELS
                     WHERE
                         (GROUP_NAME = ? AND NAME = ? AND NAME IS NOT NULL)
-                         OR (NAME = ? AND GROUP_NAME IS NULL)
-                         OR (GROUP_NAME = ? AND NAME IS NULL)""",
+                         OR (NAME = ? AND GROUP_NAME IS NULL)""",
                     params=(
                         self.group_name,
                         self.name,
-                        self.group_name,
                         self.group_name,
                     ),
                 ).collect()[0][0]
@@ -83,8 +80,8 @@ class Label(BaseOpsCenterModel):
         with transaction(session):
             if self.is_dynamic:
                 old_label_exists = session.sql(
-                    f"SELECT COUNT(*) FROM INTERNAL.{self.table_name} WHERE group_name = ? and is_dynamic",
-                    params=(self.group_name,),
+                    f"SELECT COUNT(*) FROM INTERNAL.{self.table_name} WHERE name = ? and is_dynamic",
+                    params=(self.name,),
                 ).collect()[0][0]
             else:
                 old_label_exists = session.sql(
@@ -120,22 +117,22 @@ class Label(BaseOpsCenterModel):
         """
         name = values.get("name")
         if values.get("is_dynamic"):
-            assert not name, "Dynamic labels cannot have a name."
             assert not values.get("group_rank"), "Dynamic labels cannot have a rank."
             assert (
-                values.get("group_name", None) is not None
-            ), "Dynamic labels must have a group name."
-        elif values.get("group_name"):
+                values.get("group_name", None) is None
+            ), "Dynamic labels must not have a group name."
+        if values.get("group_name"):
             group_name = values.get("group_name")
             assert group_name is not None, "Name must not be null."
             assert isinstance(group_name, str), "Name should be a string."
             assert values.get("group_rank"), "Grouped labels must have a rank."
         else:
-            assert name is not None, "Name must not be null."
-            assert isinstance(name, str), "Name must be a string."
             assert not values.get(
                 "group_rank"
             ), "Group rank may only be provided for grouped labels."
+
+        assert name is not None, "Name must not be null."
+        assert isinstance(name, str), "Name must be a string."
 
         return values
 
@@ -171,10 +168,12 @@ class Label(BaseOpsCenterModel):
         session = get_current_session()
 
         # Check that the label [group] name does not conflict with any columns already in this view
-        attr = "group name" if values.get("group_name") else "name"
-        name = (
-            values.get("group_name") if values.get("group_name") else values.get("name")
-        )
+        if values.get("group_name"):
+            attr = "group name"
+            name = values.get("group_name")
+        else:
+            attr = "name"
+            name = values.get("name")
 
         try:
             session.sql(
