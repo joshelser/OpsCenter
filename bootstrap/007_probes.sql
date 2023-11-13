@@ -155,7 +155,7 @@ BEGIN
     s := s || $$
     else null end as probe_to_execute
     from table(SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY(CURRENT_TIMESTAMP())) as qh
-    left outer join internal.probe_actions on qh.query_id = probe_actions.query_id
+    left outer join internal.probe_actions as actions on qh.query_id = actions.query_id
     where session_id <> current_session() and
         (probe_to_execute, qh.query_id) not in (select probe_name, query_id from internal.probe_actions)
     ),
