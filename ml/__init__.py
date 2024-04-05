@@ -40,18 +40,29 @@ num_cols = len(model_sizes)
 # num actions: move up a size, move down a size, do nothing
 num_actions = 3
 
+def get_return_df(df, next_wh, wsize):
+    return pandas.DataFrame({'next_warehouse_size': [next_wh],
+                             'warehouse_size': [wsize],
+                             'query_text': [df.QUERY_TEXT.unique()[0]],
+                             'database_name': [df.DATABASE_NAME.unique()[0]],
+                             'schema_name': [df.SCHEMA_NAME.unique()[0]],
+                             })
 
 def end_partition(df):
     if df.QUERY_TYPE.unique()[0] not in nonzero_cost_statements:
-        return pandas.DataFrame({'next_warehouse_size': [None], 'warehouse_size': [None]})
+        return get_return_df(df, None, None)
 
     learner = QLearner(num_states=num_states, num_actions=num_actions, epsilon=0.3, xi=0.90, alpha=0.1, gamma=0.9)
+    wsize = None
+    wsize_idx = 0
+    first_cost = 0
+    s = get_state_from_pos((wsize_idx, 0))
     for i, last_row in df.iterrows():
         mruntime = last_row['MODEL_RUNTIME_SCORE']
         mruntime_idx = model_sizes.index(mruntime)
         wsize = last_row['WAREHOUSE_SIZE']
         if wsize not in sizes:
-            return pandas.DataFrame({'next_warehouse_size': [None], 'warehouse_size': [wsize]})
+            return get_return_df(df, None, wsize)
         wsize_idx = sizes[wsize]
         cost = float(last_row['COST'])
         if i == 0:
@@ -75,7 +86,7 @@ def end_partition(df):
         next_wh = reverse_sizes[max(0, wsize_idx - 1)]
     else:
         next_wh = reverse_sizes[wsize_idx]
-    return pandas.DataFrame({'next_warehouse_size': [next_wh], 'warehouse_size': [wsize]})
+    return get_return_df(df, next_wh, wsize)
 
 
 class QLearner:
