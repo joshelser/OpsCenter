@@ -16,27 +16,30 @@ returns table (next_warehouse_size varchar, warehouse_size varchar, query_text v
 language python
 runtime_version=3.10
 handler='run'
-imports = ('{{stage}}/qlearning.zip')
+imports = ('{{stage}}/python/ml.zip')
 packages=('pandas', 'numpy')
 as $$
 import pandas
 from _snowflake import vectorized
-import qlearning
+import ml
 
 class run:
     @vectorized(input=pandas.DataFrame)
     def end_partition(self, df):
-        return qlearning.end_partition(df)
+        return ml.end_partition(df)
 $$;
 
+create table if not exists analysis.autorouting_history (query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar, run_id number, input variant);
 
-create table if not exists analysis.autorouting_history (query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar);
 create or replace procedure analysis.refresh_autorouting(label_name varchar, warehouse_prefix varchar, hint object, initial_warehouse varchar, lookback_period varchar)
 returns table(query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar)
 language sql
-as $$
+as 
+begin
 let nextrun number := (select analysis.autorouting_seq.nextval);
-let sql varchar := 'with raw as (
+let input variant := (select {'label_name': label_name, 'warehouse_prefix': warehouse_prefix, 'hint': hint, 'initial_warehouse': initial_warehouse, 'lookback_period': lookback_period}::variant);
+let sql varchar := 'insert into analysis.autorouting_history(query_signature, query_text, database_name, schema_name, target_warehouse, run_id, input)
+with raw as (
 select
        warehouse_name,
        cost,
@@ -60,7 +63,8 @@ t.query_text as query_text,
 t.database_name as database_name,
 t.schema_name as schema_name,
 concat(?, t.next_warehouse_size) as target_warehouse,
-? as run_id
+? as run_id,
+parse_json(?) as input
 from raw, table(analysis.choose_warehouse(
 		warehouse_name,
 		warehouse_size,
@@ -73,9 +77,8 @@ from raw, table(analysis.choose_warehouse(
         schema_name
         ?) over (partition by query_parameterized_hash order by start_time)) t';
 let tmpl_sql := (select tools.templatejs({'label_name':label_name, 'lookback_period':lookback_period}));
-let res resultset := (execute immediate :sql using (:warehouse_prefix, :initial_warehouse, :tmpl_sql));
-insert into analysis.autorouting_history select * from table(res);
+let res resultset := (execute immediate :sql using (warehouse_prefix, initial_warehouse, tmpl_sql, input));
 let rettbl resultset := (select query_signature, query_text, database_name, schema_name, target_warehouse from analysis.autorouting_history where run_id = :nextrun);
 return table(rettbl);
-$$;
+end;
 
