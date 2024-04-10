@@ -37,7 +37,7 @@ language sql
 as 
 begin
 let nextrun number := (select analysis.autorouting_seq.nextval);
-let input variant := (select {'label_name': label_name, 'warehouse_prefix': warehouse_prefix, 'hint': hint, 'initial_warehouse': initial_warehouse, 'lookback_period': lookback_period}::variant);
+let input variant := (select {'label_name': :label_name, 'warehouse_prefix': :warehouse_prefix, 'hint': :hint, 'initial_warehouse': :initial_warehouse, 'lookback_period': :lookback_period}::variant);
 let sql varchar := 'insert into analysis.autorouting_history(query_signature, query_text, database_name, schema_name, target_warehouse, run_id, input)
 with raw as (
 select
@@ -51,7 +51,7 @@ select
        database_name,
        schema_name,
        tools.model_run_time(total_elapsed_time) as run_time
-from reporting.labeled_query history where {label_name}
+from reporting.labeled_query_history where {label_name}
 and start_time > current_timestamp - interval \'{lookback_period}\' -- only consider recent queries
 and execution_status = \'SUCCESS\' -- dont consider failed queries
 and query_parameterized_hash is not null -- filter out queries w/o a hash
@@ -74,11 +74,10 @@ from raw, table(analysis.choose_warehouse(
 		cost,
         query_text,
         database_name,
-        schema_name
-        ?) over (partition by query_parameterized_hash order by start_time)) t';
-let tmpl_sql := (select tools.templatejs({'label_name':label_name, 'lookback_period':lookback_period}));
-let res resultset := (execute immediate :sql using (warehouse_prefix, initial_warehouse, tmpl_sql, input));
+        schema_name,
+        parse_json(?)::object) over (partition by query_parameterized_hash order by start_time)) t';
+let tmpl_sql varchar := (select tools.templatejs(:sql, {'label_name': :label_name, 'lookback_period': :lookback_period}));
+let res resultset := (execute immediate :tmpl_sql using (warehouse_prefix, initial_warehouse, tmpl_sql, input));
 let rettbl resultset := (select query_signature, query_text, database_name, schema_name, target_warehouse from analysis.autorouting_history where run_id = :nextrun);
 return table(rettbl);
 end;
-
