@@ -55,7 +55,7 @@ from reporting.labeled_query_history where {label_name}
 and start_time > current_timestamp - interval \'{lookback_period}\' -- only consider recent queries
 and execution_status = \'SUCCESS\' -- dont consider failed queries
 and query_parameterized_hash is not null -- filter out queries w/o a hash
-and warehouse_size is null -- no warehouse means a metadata only query and we can ignore it (cant route anyways)
+and warehouse_size is not null -- no warehouse means a metadata only query and we can ignore it (cant route anyways)
 )
 select 
 query_parameterized_hash as query_signature,
@@ -77,7 +77,7 @@ from raw, table(analysis.choose_warehouse(
         schema_name,
         parse_json(?)::object) over (partition by query_parameterized_hash order by start_time)) t';
 let tmpl_sql varchar := (select tools.templatejs(:sql, {'label_name': :label_name, 'lookback_period': :lookback_period}));
-let res resultset := (execute immediate :tmpl_sql using (warehouse_prefix, initial_warehouse, tmpl_sql, input));
+let res resultset := (execute immediate :tmpl_sql using (warehouse_prefix, nextrun, input, hint));
 let rettbl resultset := (select query_signature, query_text, database_name, schema_name, target_warehouse from analysis.autorouting_history where run_id = :nextrun);
 return table(rettbl);
 end;
