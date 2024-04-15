@@ -10,7 +10,8 @@ create or replace function analysis.choose_warehouse(warehouse_name varchar,
                             query_text varchar,
                             database_name varchar,
                             schema_name varchar,
-                            hint object
+                            hint object,
+                            max_warehouse_size varchar default '6X-Large'
                         )
 returns table (next_warehouse_size varchar, warehouse_size varchar, query_text varchar, database_name varchar, schema_name varchar)
 language python
@@ -31,7 +32,7 @@ $$;
 
 create table if not exists analysis.autorouting_history (query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar, run_id number, input variant);
 
-create or replace procedure analysis.refresh_autorouting(label_name varchar, warehouse_prefix varchar, hint object, initial_warehouse varchar, lookback_period varchar)
+create or replace procedure analysis.refresh_autorouting(label_name varchar, warehouse_prefix varchar, hint object, initial_warehouse varchar, lookback_period varchar, max_warehouse_size varchar)
 returns table(query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar)
 language sql
 as 
@@ -75,9 +76,10 @@ from raw, table(analysis.choose_warehouse(
         query_text,
         database_name,
         schema_name,
-        parse_json(?)::object) over (partition by query_parameterized_hash order by start_time)) t';
+        parse_json(?)::object,
+?) over (partition by query_parameterized_hash order by start_time)) t';
 let tmpl_sql varchar := (select tools.templatejs(:sql, {'label_name': :label_name, 'lookback_period': :lookback_period}));
-let res resultset := (execute immediate :tmpl_sql using (warehouse_prefix, nextrun, input, hint));
+let res resultset := (execute immediate :tmpl_sql using (warehouse_prefix, nextrun, input, hint, max_warehouse_size));
 let rettbl resultset := (select query_signature, query_text, database_name, schema_name, target_warehouse from analysis.autorouting_history where run_id = :nextrun);
 return table(rettbl);
 end;

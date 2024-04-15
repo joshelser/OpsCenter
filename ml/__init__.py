@@ -1,5 +1,6 @@
 import pandas
 import numpy as np
+import json
 
 # SET statements can theoretically cause cost if they are setting from a select
 # CREATE statements can cause cost if we are creating a non SQL proc or func
@@ -40,6 +41,21 @@ num_cols = len(model_sizes)
 # num actions: move up a size, move down a size, do nothing
 num_actions = 3
 
+def get_hint(df):
+    hint_str = df['HINT'].values[0]
+    ## we assume hint will always be the same across all rows
+    hint = json.loads(hint_str)
+    if 'epsilon' not in hint:
+        hint['epsilon'] = 0.3
+    if 'xi' not in hint:
+        hint['xi'] = 0.9
+    if 'alpha' not in hint:
+        hint['alpha'] = 0.1
+    if 'gamma' not in hint:
+        hint['gamma'] = 0.9
+
+    return hint
+
 def get_return_df(df, next_wh, wsize):
     return pandas.DataFrame({'next_warehouse_size': [next_wh],
                              'warehouse_size': [wsize],
@@ -49,10 +65,11 @@ def get_return_df(df, next_wh, wsize):
                              })
 
 def end_partition(df):
-    if df.QUERY_TYPE.unique()[0] not in nonzero_cost_statements:
-        return get_return_df(df, None, None)
+    hint = get_hint(df)
+    max_warehouse_size = df['MAX_WAREHOUSE_SIZE'].values[0]
+    max_warehouse_size_idx = sizes[max_warehouse_size]
 
-    learner = QLearner(num_states=num_states, num_actions=num_actions, epsilon=0.3, xi=0.90, alpha=0.1, gamma=0.9)
+    learner = QLearner(num_states=num_states, num_actions=num_actions, **hint)
     wsize = None
     wsize_idx = 0
     first_cost = 0
@@ -80,6 +97,8 @@ def end_partition(df):
             s = s_prime
             learner.update_episode()
     a = learner.actuate(s)
+    # make sure we stay below the max wh size set by the user
+    wsize_idx = min(wsize_idx, max_warehouse_size_idx)
     if a == 0:
         next_wh = reverse_sizes[min(9, wsize_idx + 1)]
     elif a == 1:
@@ -90,7 +109,7 @@ def end_partition(df):
 
 
 class QLearner:
-    def __init__(self, num_states, num_actions, alpha=0.9, gamma=0.1, epsilon=0.9, xi=0.99):
+    def __init__(self, num_states, num_actions, alpha=0.9, gamma=0.1, epsilon=0.9, xi=0.99, **kwargs):
         self.num_states = num_states
         self.num_actions = num_actions
         self.alpha = alpha
@@ -99,6 +118,9 @@ class QLearner:
         self.xi = xi
         self.cur_policy = np.random.randint(num_actions, size=num_states)
         self.q_table = np.copy(qtable)
+        # set the policy to be the best action for each state
+        for i in range(num_states):
+            self.cur_policy[i] = np.argmax(self.q_table[i])
 
     def percept(self, s, a, s_prime, r):
         q_prime = np.max(self.q_table[s_prime])
