@@ -44,15 +44,18 @@ num_actions = 3
 def get_hint(df):
     hint_str = df['HINT'].values[0]
     ## we assume hint will always be the same across all rows
-    hint = json.loads(hint_str)
+    try:
+        hint = json.loads(hint_str)
+    except:
+        hint = hint_str
     if 'epsilon' not in hint:
-        hint['epsilon'] = 0.3
+        hint['epsilon'] = 0.001
     if 'xi' not in hint:
         hint['xi'] = 0.9
     if 'alpha' not in hint:
-        hint['alpha'] = 0.1
+        hint['alpha'] = 0.9
     if 'gamma' not in hint:
-        hint['gamma'] = 0.9
+        hint['gamma'] = 0.1
 
     return hint
 
