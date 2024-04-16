@@ -1,6 +1,7 @@
 
 CREATE sequence if not exists analysis.autorouting_seq START = 1 INCREMENT = 1;
 
+drop function if exists analysis.choose_warehouse(varchar, varchar, varchar, varchar, varchar, number, varchar, varchar, varchar, object);
 create or replace function analysis.choose_warehouse(warehouse_name varchar,
                             warehouse_size varchar,
                             query_type varchar,
