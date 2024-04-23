@@ -75,7 +75,7 @@ create or replace function analysis.choose_warehouse(warehouse_name varchar,
                             min_warehouse_size varchar default 'X-Small',
                             max_warehouse_size varchar default '6X-Large'
                         )
-returns table (next_warehouse_size varchar, warehouse_size varchar, query_text varchar, database_name varchar, schema_name varchar)
+returns table (next_warehouse_size varchar, warehouse_size varchar, query_text varchar, database_name varchar, schema_name varchar, reward float, state number, action number)
 language python
 runtime_version=3.10
 handler='run'
@@ -89,10 +89,13 @@ import ml
 class run:
     @vectorized(input=pandas.DataFrame)
     def end_partition(self, df):
-        return ml.end_partition(df)
+        return ml.end_partition(df).tail(1)
 $$;
 
 create table if not exists analysis.autorouting_history (query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar, run_id number, input variant);
+alter table analysis.autorouting_history add column if not exists reward float;
+alter table analysis.autorouting_history add column if not exists state number;
+alter table analysis.autorouting_history add column if not exists action number;
 
 create or replace procedure analysis.refresh_autorouting(label_name varchar, warehouse_prefix varchar, hint object, initial_warehouse varchar, lookback_period varchar)
 returns table(query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar)
@@ -132,7 +135,10 @@ t.database_name as database_name,
 t.schema_name as schema_name,
 concat(?, t.next_warehouse_size) as target_warehouse,
 ? as run_id,
-parse_json(?) as input
+parse_json(?) as input,
+t.reward as reward,
+t.state as state,
+t.action as action
 from raw, table(analysis.choose_warehouse(
 		warehouse_name,
 		warehouse_size,
