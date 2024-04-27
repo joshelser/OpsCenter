@@ -84,7 +84,22 @@ CREATE OR REPLACE TASK TASKS.QUERY_HISTORY_MAINTENANCE
     ALLOW_OVERLAPPING_EXECUTION = FALSE
     USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = "LARGE"
     AS
-    CALL INTERNAL.refresh_queries(true);
+DECLARE
+    start_time timestamp_ltz default (select current_timestamp());
+    task_run_id text default (select INTERNAL.TASK_RUN_ID());
+    query_id text default (select query_id from table(information_schema.task_history(TASK_NAME => 'QUERY_HISTORY_MAINTENANCE'))
+        WHERE GRAPH_RUN_GROUP_ID = :task_run_id  AND DATABASE_NAME = current_database()
+        limit 1);
+BEGIN
+    let input variant := (select output from INTERNAL.TASK_QUERY_HISTORY where success order by task_start desc limit 1);
+    INSERT INTO INTERNAL.TASK_QUERY_HISTORY(task_start, task_run_id, query_id, input, table_name) select :start_time, :task_run_id, :query_id, :input, 'QUERY_HISTORY';
+
+    let output variant;
+    CALL INTERNAL.refresh_queries(true, :input) into :output;
+
+    let success boolean := (select :output['SQLERRM'] is null);
+    UPDATE INTERNAL.TASK_QUERY_HISTORY SET success = :success, output = :output, task_finish = current_timestamp() WHERE task_run_id = :task_run_id;
+END;
 
 CREATE OR REPLACE TASK TASKS.SFUSER_MAINTENANCE
     SCHEDULE = '1440 minute'
