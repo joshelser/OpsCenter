@@ -77,14 +77,14 @@ DECLARE
     object_type text default 'WAREHOUSE_EVENTS';
     object_name text default 'WAREHOUSE_EVENTS_HISTORY';
 BEGIN
-    let input variant := (select output from INTERNAL.TASK_WAREHOUSE_EVENTS where success order by task_start desc limit 1);
-    INSERT INTO INTERNAL.TASK_WAREHOUSE_EVENTS(task_start, task_run_id, query_id, input, object_type, object_name) select :start_time, :task_run_id, :query_id, :input, :object_type, :object_name;
+    let input variant := (select output from INTERNAL.TASK_LOG where success AND object_type = :object_type AND object_name = :object_name order by task_start desc limit 1);
+    INSERT INTO INTERNAL.TASK_LOG(task_start, task_run_id, query_id, input, object_type, object_name) select :start_time, :task_run_id, :query_id, :input, :object_type, :object_name;
 
     let output variant;
     CALL INTERNAL.refresh_warehouse_events(true, :input) into :output;
 
     let success boolean := (select :output['SQLERRM'] is null);
-    UPDATE INTERNAL.TASK_WAREHOUSE_EVENTS SET success = :success, output = :output, task_finish = current_timestamp() WHERE task_start = :start_time AND task_run_id = :task_run_id;
+    UPDATE INTERNAL.TASK_LOG SET success = :success, output = :output, task_finish = current_timestamp() WHERE task_start = :start_time AND task_run_id = :task_run_id;
 END;
 
 CREATE OR REPLACE TASK TASKS.SIMPLE_DATA_EVENTS_MAINTENANCE
@@ -139,7 +139,7 @@ DECLARE
     task_run_id text default (select INTERNAL.TASK_RUN_ID());
     query_id text default (select query_id from table(information_schema.task_history(TASK_NAME => 'QUERY_HISTORY_MAINTENANCE')) WHERE GRAPH_RUN_GROUP_ID = :task_run_id  AND DATABASE_NAME = current_database() limit 1);
 BEGIN
-    let input variant := (select output from INTERNAL.TASK_QUERY_HISTORY where success order by task_start desc limit 1);
+    let input variant := (select output from INTERNAL.TASK_LOG where success AND object_type = :object_type AND object_name = :object_name order by task_start desc limit 1);
     INSERT INTO INTERNAL.TASK_LOG(task_start, task_run_id, query_id, input, object_type, object_name) select :start_time, :task_run_id, :query_id, :input, :object_type, :object_name;
 
     let output variant;
@@ -415,7 +415,7 @@ BEGIN
 exception
     when other then
         SYSTEM$LOG_ERROR(OBJECT_CONSTRUCT('error', 'Exception occurred while refreshing all warehouse events.', 'SQLCODE', :sqlcode, 'SQLERRM', :sqlerrm, 'SQLSTATE', :sqlstate));
-        insert into INTERNAL.TASK_WAREHOUSE_LOAD_EVENTS(task_start, success, warehouse_name, input, output, task_run_id, query_id) SELECT :task_start, false, 'all', null, OBJECT_CONSTRUCT('Error type', 'Other error', 'SQLCODE', :sqlcode, 'SQLERRM', :sqlerrm, 'SQLSTATE', :sqlstate)::variant, :task_run_id, :query_id;
+        insert into INTERNAL.TASK_LOG(task_start, success, object_name, input, output, task_run_id, query_id, object_type, object_name) SELECT :task_start, false, 'all', null, OBJECT_CONSTRUCT('Error type', 'Other error', 'SQLCODE', :sqlcode, 'SQLERRM', :sqlerrm, 'SQLSTATE', :sqlstate)::variant, :task_run_id, :query_id, :object_type;
         RAISE;
 end;
 
