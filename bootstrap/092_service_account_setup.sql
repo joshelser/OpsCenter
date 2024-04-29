@@ -96,7 +96,7 @@ declare
     object_type text default 'UPGRADE';
     object_name text default 'UPGRADE_CHECK';
     task_run_id text default (select INTERNAL.TASK_RUN_ID());
-    query_id text default (select INTERNAL.TASK_QUERY_ID('UPGRADE_CHECK', :task_run_id));
+    query_id text default (select query_id from table(information_schema.task_history(TASK_NAME => 'UPGRADE_CHECK')) WHERE GRAPH_RUN_GROUP_ID = :task_run_id  AND DATABASE_NAME = current_database() limit 1);
 begin
     let input variant := (select output from internal.task_log where object_type = :object_type and object_name = :object_name order by task_start desc limit 1);
     INSERT INTO INTERNAL.TASK_LOG(task_start, task_run_id, query_id, input, object_type, object_name) SELECT :start_time, :task_run_id, :query_id, :input, :object_type, :object_name;

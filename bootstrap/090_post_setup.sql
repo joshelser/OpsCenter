@@ -73,7 +73,7 @@ CREATE OR REPLACE TASK TASKS.WAREHOUSE_EVENTS_MAINTENANCE
 DECLARE
     start_time timestamp_ltz default (select current_timestamp());
     task_run_id text default (select INTERNAL.TASK_RUN_ID());
-    query_id text default (select INTERNAL.TASK_QUERY_ID('WAREHOUSE_EVENTS_MAINTENANCE', :task_run_id));
+    query_id text default (select query_id from table(information_schema.task_history(TASK_NAME => 'WAREHOUSE_EVENTS_MAINTENANCE')) WHERE GRAPH_RUN_GROUP_ID = :task_run_id  AND DATABASE_NAME = current_database() limit 1);
     object_type text default 'WAREHOUSE_EVENTS';
     object_name text default 'WAREHOUSE_EVENTS_HISTORY';
 BEGIN
@@ -95,7 +95,7 @@ CREATE OR REPLACE TASK TASKS.SIMPLE_DATA_EVENTS_MAINTENANCE
 DECLARE
     object_type text default 'SIMPLE_DATA_EVENT';
     task_run_id text default (select INTERNAL.TASK_RUN_ID());
-    query_id text default (select INTERNAL.TASK_QUERY_ID('SIMPLE_DATA_EVENTS_MAINTENANCE', :task_run_id));
+    query_id text default (select query_id from table(information_schema.task_history(TASK_NAME => 'SIMPLE_DATA_EVENTS_MAINTENANCE')) WHERE GRAPH_RUN_GROUP_ID = :task_run_id  AND DATABASE_NAME = current_database() limit 1);
 BEGIN
     let simple_tables resultset := (SELECT t.table_name, t.index_col FROM (VALUES
         ('SERVERLESS_TASK_HISTORY', 'end_time'),
@@ -137,7 +137,7 @@ DECLARE
     object_type text default 'QUERY_HISTORY';
     object_name text default 'QUERY_HISTORY';
     task_run_id text default (select INTERNAL.TASK_RUN_ID());
-    query_id text default (select INTERNAL.TASK_QUERY_ID('QUERY_HISTORY_MAINTENANCE', :task_run_id));
+    query_id text default (select query_id from table(information_schema.task_history(TASK_NAME => 'QUERY_HISTORY_MAINTENANCE')) WHERE GRAPH_RUN_GROUP_ID = :task_run_id  AND DATABASE_NAME = current_database() limit 1);
 BEGIN
     let input variant := (select output from INTERNAL.TASK_QUERY_HISTORY where success order by task_start desc limit 1);
     INSERT INTO INTERNAL.TASK_LOG(task_start, task_run_id, query_id, input, object_type, object_name) select :start_time, :task_run_id, :query_id, :input, :object_type, :object_name;
@@ -378,7 +378,7 @@ DECLARE
     task_start timestamp_ltz default (select current_timestamp());
     object_type text default 'WAREHOUSE_LOAD_EVENT';
     task_run_id text default (select INTERNAL.TASK_RUN_ID());
-    query_id text default (select INTERNAL.TASK_QUERY_ID('WAREHOUSE_LOAD_MAINTENANCE', :task_run_id));
+    query_id text default (select query_id from table(information_schema.task_history(TASK_NAME => 'WAREHOUSE_LOAD_MAINTENANCE')) WHERE GRAPH_RUN_GROUP_ID = :task_run_id  AND DATABASE_NAME = current_database() limit 1);
 BEGIN
     let wh resultset := (select name from internal.sfwarehouses);
     let wh_cur cursor for wh;
