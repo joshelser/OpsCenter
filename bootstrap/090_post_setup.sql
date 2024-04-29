@@ -105,16 +105,18 @@ BEGIN
     ) AS t(table_name, index_col));
     let cur cursor for simple_tables;
     FOR rowvar IN cur DO
+        let table_name text := rowvar.table_name;
+        let index_col text := rowvar.index_col;
         BEGIN
             let start_time timestamp_ltz := (select current_timestamp());
-            let input variant := (select output from INTERNAL.TASK_WAREHOUSE_EVENTS where success order by task_start desc limit 1);
-            INSERT INTO INTERNAL.TASK_SIMPLE_DATA_EVENTS(task_start, task_run_id, query_id, input, table_name) select :start_time, :task_run_id, :query_id, :input, rowvar.table_name;
+            let input object := (select output from INTERNAL.TASK_SIMPLE_DATA_EVENTS where success and table_name = :table_name order by task_start desc limit 1);
+            INSERT INTO INTERNAL.TASK_SIMPLE_DATA_EVENTS(task_start, task_run_id, query_id, input, table_name) select :start_time, :task_run_id, :query_id, :input, :table_name;
 
             let output variant;
-            CALL INTERNAL.refresh_simple_table(rowvar.table_name, rowvar.index_col, true, :input) into :output;
+            CALL INTERNAL.refresh_simple_table(:table_name, :index_col, true, :input) into :output;
 
             let success boolean := (select :output['SQLERRM'] is null);
-            UPDATE INTERNAL.TASK_SIMPLE_DATA_EVENTS SET success = :success, output = :output, task_finish = current_timestamp() WHERE task_start = :start_time AND task_run_id = :task_run_id AND table_name = rowvar.table_name;
+            UPDATE INTERNAL.TASK_SIMPLE_DATA_EVENTS SET success = :success, output = :output, task_finish = current_timestamp() WHERE task_start = :start_time AND task_run_id = :task_run_id AND table_name = :table_name;
         END;
     END FOR;
 
