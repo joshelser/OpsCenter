@@ -1,15 +1,15 @@
 
-create or replace procedure get_min_max_warehouse_sizes(prefix string)
+create or replace procedure analysis.get_min_max_warehouse_sizes(prefix string)
     returns string
     language sql
 as
 declare
     min_sz_str string;
     max_sz_str string;
-    NO_WAREHOUSES_WITH_PREFIX EXCEPTION(-20500, 'No warehouse with the given prefix');
-    WAREHOUSES_NOT_CONTIGUOUS EXCEPTION(-20500, 'Warehouse are not contiguous with the given prefix');
+    NO_WAREHOUSES_WITH_PREFIX EXCEPTION(-20501, 'No warehouse with the given prefix');
+    WAREHOUSES_NOT_CONTIGUOUS EXCEPTION(-20502, 'Warehouses are not contiguous with the given prefix');
 begin
-    let prefix_m string := prefix || '_%';
+    let prefix_m string := prefix || '%';
     execute immediate 'SHOW WAREHOUSES LIKE \'' || :prefix_m || '\'';
 
     let rs resultset := (
@@ -72,7 +72,7 @@ create or replace function analysis.choose_warehouse(warehouse_name varchar,
                             database_name varchar,
                             schema_name varchar,
                             hint object,
-                            max_warehouse_size varchar default 'X-Small'
+                            min_warehouse_size varchar default 'X-Small',
                             max_warehouse_size varchar default '6X-Large'
                         )
 returns table (next_warehouse_size varchar, warehouse_size varchar, query_text varchar, database_name varchar, schema_name varchar)
@@ -99,7 +99,8 @@ returns table(query_signature varchar, query_text varchar, database_name varchar
 language sql
 as 
 begin
-call get_max_warehouse_size(:warehouse_prefix) INTO :json_str;
+let json_str string := '{}';
+call analysis.get_min_max_warehouse_sizes(:warehouse_prefix) INTO :json_str;
 let vobj variant := PARSE_JSON(json_str);
 let max_warehouse_size varchar := vobj['max_wh'];
 let min_warehouse_size varchar := vobj['min_wh'];
