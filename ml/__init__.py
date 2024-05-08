@@ -71,6 +71,8 @@ def end_partition(df):
     hint = get_hint(df)
     max_warehouse_size = df['MAX_WAREHOUSE_SIZE'].values[0]
     max_warehouse_size_idx = sizes[max_warehouse_size]
+    min_warehouse_size = df['MIN_WAREHOUSE_SIZE'].values[0]
+    min_warehouse_size_idx = sizes[min_warehouse_size]
 
     learner = QLearner(num_states=num_states, num_actions=num_actions, **hint)
     wsize = None
@@ -102,6 +104,8 @@ def end_partition(df):
     a = learner.actuate(s)
     # make sure we stay below the max wh size set by the user
     wsize_idx = min(wsize_idx, max_warehouse_size_idx)
+    # make sure we stay above the min wh size set by the user
+    wsize_idx = max(wsize_idx, min_warehouse_size_idx)
     if a == 0:
         next_wh = reverse_sizes[min(9, wsize_idx + 1)]
     elif a == 1:
