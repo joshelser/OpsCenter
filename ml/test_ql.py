@@ -1,5 +1,5 @@
 import pandas
-from qlearning import iterate_with_restart, QlearningIterate, get_pos_from_state, RewardCandidateB
+from qlearning import iterate_with_restart, QlearningIterate, RewardCandidateB
 
 sample_data_1 = [
     {'WAREHOUSE_SIZE': 'X-Small', 'MODEL_RUNTIME_SCORE': 'XL+', 'COST': 0.2 * 2.36789652},
