@@ -49,9 +49,9 @@ def end_partition(df: pandas.DataFrame) -> pandas.DataFrame:
     hint = get_hint(df)
     # we aren't using a max warehouse size atm
     max_warehouse_size = df['MAX_WAREHOUSE_SIZE'].values[0]
-    max_warehouse_size = df['MIN_WAREHOUSE_SIZE'].values[0]
+    min_warehouse_size = df['MIN_WAREHOUSE_SIZE'].values[0]
 
-    model = QlearningIterate(len(sizes) * len(model_run_times), 3, max_warehouse_size, reward_func=RewardCandidateB(), **hint)
+    model = QlearningIterate(len(sizes) * len(model_run_times), 3, max_warehouse_size, min_warehouse_size, reward_func=RewardCandidateB(), **hint)
 
     df = iterate_with_restart(model, df.iterrows())
     return df
