@@ -48,7 +48,8 @@ def get_return_df(df: pandas.Series, next_wh: str, wsize: str, reward: float, st
 def end_partition(df: pandas.DataFrame) -> pandas.DataFrame:
     hint = get_hint(df)
     # we aren't using a max warehouse size atm
-    max_warehouse_size = None  # df['MAX_WAREHOUSE_SIZE'].values[0]
+    max_warehouse_size = df['MAX_WAREHOUSE_SIZE'].values[0]
+    max_warehouse_size = df['MIN_WAREHOUSE_SIZE'].values[0]
 
     model = QlearningIterate(len(sizes) * len(model_sizes), 3, max_warehouse_size, reward_func=RewardCandidateB(), **hint)
 

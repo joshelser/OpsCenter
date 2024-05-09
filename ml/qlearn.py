@@ -4,13 +4,14 @@ from rewards import reward_candidate_a
 from utils import get_state_from_names, get_pos_from_state, sizes, model_sizes, reverse_sizes
 
 class QlearningIterate:
-    def __init__(self, num_states: int, num_actions: int, max_warehouse_size: Optional[str] = None,
+    def __init__(self, num_states: int, num_actions: int, max_warehouse_size: Optional[str] = None, min_warehouse_size: Optional[str] = None,
                  reward_func: Callable[[int, int, float, float, int], float] = reward_candidate_a,
                  **hint: Dict[str, Any]):
         self.last_cost: float = 0
         self.last_state: int = 0
         self.last_action: int = 0
         self.max_warehouse_size_idx: int = 9 if max_warehouse_size is None else sizes[max_warehouse_size]
+        self.min_warehouse_size_idx: int = 0 if min_warehouse_size is None else sizes[min_warehouse_size]
         self.learner = QLearner(num_states=num_states, num_actions=num_actions, **hint)
         self.cost_count_history = np.zeros(num_states)
         self.cost_sum_history = np.zeros(num_states)
@@ -61,7 +62,12 @@ class QlearningIterate:
             # we stay the same
             next_wh_idx = warehouse_size_idx
         # make sure we stay below the max wh size set by the user
+        next_wh_idx = min(next_wh_idx, self.max_warehouse_size_idx)
+        # make sure we stay above the min wh size set by the user
+        next_wh_idx = max(next_wh_idx, self.min_warehouse_size_idx)
+
         next_wh = reverse_sizes[next_wh_idx]
+
         return next_wh
 
     def calculate_reward(self, cost: float, s_prime: int) -> float:
