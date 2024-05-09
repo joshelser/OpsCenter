@@ -2,7 +2,7 @@ import pandas
 from typing import Dict, Any, Tuple, Optional, List, Iterable, Hashable
 import numpy as np
 import json
-from .utils import sizes, model_sizes, short_sizes
+from .utils import sizes, model_run_times, short_sizes
 from .rewards import RewardCandidateB
 from .qlearn import QlearningIterate
 
@@ -51,27 +51,27 @@ def end_partition(df: pandas.DataFrame) -> pandas.DataFrame:
     max_warehouse_size = df['MAX_WAREHOUSE_SIZE'].values[0]
     max_warehouse_size = df['MIN_WAREHOUSE_SIZE'].values[0]
 
-    model = QlearningIterate(len(sizes) * len(model_sizes), 3, max_warehouse_size, reward_func=RewardCandidateB(), **hint)
+    model = QlearningIterate(len(sizes) * len(model_run_times), 3, max_warehouse_size, reward_func=RewardCandidateB(), **hint)
 
     df = iterate_with_restart(model, df.iterrows())
     return df
 
 
-def iterate(model: QlearningIterate, warehouse_size: str, model_size: str, cost: float, first_run: bool) -> Tuple[
+def iterate(model: QlearningIterate, warehouse_size: str, model_run_time: str, cost: float, first_run: bool) -> Tuple[
     Optional[str], float]:
     if warehouse_size not in sizes:
         return None, 0.0
     if first_run:
-        next_warehouse_size = model.next(warehouse_size, model_size, cost)
+        next_warehouse_size = model.next(warehouse_size, model_run_time, cost)
         return next_warehouse_size, 0.0
-    return model.iterate(warehouse_size, model_size, cost)
+    return model.iterate(warehouse_size, model_run_time, cost)
 
 
 def extract_row(row: pandas.Series) -> Tuple[str, str, float]:
-    model_size = row['MODEL_RUNTIME_SCORE']
+    model_run_time = row['MODEL_RUNTIME_SCORE']
     warehouse_size = row['WAREHOUSE_SIZE']
     cost = float(row['COST'])
-    return warehouse_size, model_size, cost
+    return warehouse_size, model_run_time, cost
 
 
 def iterate_with_restart(model: QlearningIterate, df: Iterable[Tuple[Hashable, pandas.Series]]) -> pandas.DataFrame:
@@ -79,13 +79,13 @@ def iterate_with_restart(model: QlearningIterate, df: Iterable[Tuple[Hashable, p
     first_warehouse: str = None
     for i, (_, last_row) in enumerate(df):
         try:
-            warehouse_size, model_size, cost = extract_row(last_row)
+            warehouse_size, model_run_time, cost = extract_row(last_row)
         except:
             results.append(get_return_df(last_row, None, None, 0.0, 0, 0))
             break
         if i == 0:
             first_warehouse = warehouse_size
-        next_warehouse_size, reward = iterate(model, warehouse_size, model_size, cost, i == 0)
+        next_warehouse_size, reward = iterate(model, warehouse_size, model_run_time, cost, i == 0)
         results.append(get_return_df(last_row, next_warehouse_size, warehouse_size, reward, model.last_state, model.last_action))
         if reward < -1:
             results.extend(restart(model, first_warehouse, last_row))
@@ -95,18 +95,18 @@ def iterate_with_restart(model: QlearningIterate, df: Iterable[Tuple[Hashable, p
 
 def restart(model: QlearningIterate, first_warehouse_size: str, last_row: pandas.Series) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
-    cost, model_size = model.historical_cost(first_warehouse_size)
+    cost, model_run_time = model.historical_cost(first_warehouse_size)
     next_warehouse_size = first_warehouse_size
     count = 0
     repeated_no_action = 0
     while cost is not None and count < 1000:
         current_warehouse_size = next_warehouse_size
-        next_warehouse_size, reward = model.iterate(next_warehouse_size, model_size, cost)
-        cost, model_size = model.historical_cost(next_warehouse_size)
+        next_warehouse_size, reward = model.iterate(next_warehouse_size, model_run_time, cost)
+        cost, model_run_time = model.historical_cost(next_warehouse_size)
         count += 1
         results.append(get_return_df(last_row, next_warehouse_size, current_warehouse_size, reward, model.last_state, model.last_action))
         if reward < -1:
-            cost, model_size = model.historical_cost(first_warehouse_size)
+            cost, model_run_time = model.historical_cost(first_warehouse_size)
             next_warehouse_size = first_warehouse_size
         if model.last_action == 2:
             repeated_no_action += 1

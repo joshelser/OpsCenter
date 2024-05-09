@@ -1,15 +1,15 @@
 
 from collections import deque
 
-def reward_candidate_a(prev_model_size_idx: int, model_size_idx: int, last_cost: float, cost: float, action: int) -> float:
+def reward_candidate_a(prev_model_run_time_idx: int, model_run_time_idx: int, last_cost: float, cost: float, action: int) -> float:
     r = last_cost - cost  # base reward is difference in last run from this run
-    if model_size_idx == prev_model_size_idx:
+    if model_run_time_idx == prev_model_run_time_idx:
         # if our model size hasn't changed we give our reward a multiplicative bonus
         # if we increased warehouse size and our model size didn't change this will be a negative reward
         # if we decreased size and model didn't change we will give a positive reward
         # if the warehouse didn't change then the reward should be ~0 and this bonus won't matter
         r *= 2.0
-    if prev_model_size_idx > model_size_idx:
+    if prev_model_run_time_idx > model_run_time_idx:
         # if we shrunk our model size we give a small bonus for heading in the right direction
         r += 0.1
     return r
@@ -20,9 +20,9 @@ class RewardCandidateB:
         self.last_actions = deque(maxlen=4)
         self.last_reward = 0.0
 
-    def __call__(self, prev_model_size_idx: int, model_size_idx: int, last_cost: float, cost: float, action: int) -> float:
+    def __call__(self, prev_model_run_time_idx: int, model_run_time_idx: int, last_cost: float, cost: float, action: int) -> float:
         self.last_actions.append(action)
-        base_reward = reward_candidate_a(prev_model_size_idx, model_size_idx, last_cost, cost, action)
+        base_reward = reward_candidate_a(prev_model_run_time_idx, model_run_time_idx, last_cost, cost, action)
         total_reward = base_reward
         if self.is_flapping():
             print("flapping")
