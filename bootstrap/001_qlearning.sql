@@ -10,7 +10,7 @@ declare
     WAREHOUSES_NOT_CONTIGUOUS EXCEPTION(-20502, 'Warehouses are not contiguous with the given prefix');
 begin
     let prefix_m string := prefix || '%';
-    execute immediate 'SHOW WAREHOUSES LIKE \'' || :prefix_m || '\'';
+    execute immediate 'SHOW WAREHOUSES LIKE \'' || :prefix_m || '%\'';
 
     let rs resultset := (
     with whouses as (
@@ -62,6 +62,7 @@ end;
 CREATE sequence if not exists analysis.autorouting_seq START = 1 INCREMENT = 1;
 
 drop function if exists analysis.choose_warehouse(varchar, varchar, varchar, varchar, varchar, number, varchar, varchar, varchar, object);
+drop function if exists analysis.choose_warehouse(varchar, varchar, varchar, varchar, varchar, number, varchar, varchar, varchar, object, varchar);
 create or replace function analysis.choose_warehouse(warehouse_name varchar,
                             warehouse_size varchar,
                             query_type varchar,
@@ -75,7 +76,7 @@ create or replace function analysis.choose_warehouse(warehouse_name varchar,
                             min_warehouse_size varchar default 'X-Small',
                             max_warehouse_size varchar default '6X-Large'
                         )
-returns table (next_warehouse_size varchar, warehouse_size varchar, query_text varchar, database_name varchar, schema_name varchar)
+returns table (next_warehouse_size varchar, warehouse_size varchar, query_text varchar, database_name varchar, schema_name varchar, reward float, state number, action number)
 language python
 runtime_version=3.10
 handler='run'
@@ -89,10 +90,13 @@ import ml
 class run:
     @vectorized(input=pandas.DataFrame)
     def end_partition(self, df):
-        return ml.end_partition(df)
+        return ml.end_partition(df).tail(1)
 $$;
 
 create table if not exists analysis.autorouting_history (query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar, run_id number, input variant);
+alter table analysis.autorouting_history add column if not exists reward float;
+alter table analysis.autorouting_history add column if not exists state number;
+alter table analysis.autorouting_history add column if not exists action number;
 
 create or replace procedure analysis.refresh_autorouting(label_name varchar, warehouse_prefix varchar, hint object, initial_warehouse varchar, lookback_period varchar)
 returns table(query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar)
@@ -106,7 +110,7 @@ let max_warehouse_size varchar := vobj['max_wh'];
 let min_warehouse_size varchar := vobj['min_wh'];
 let nextrun number := (select analysis.autorouting_seq.nextval);
 let input variant := (select {'label_name': :label_name, 'warehouse_prefix': :warehouse_prefix, 'hint': :hint, 'initial_warehouse': :initial_warehouse, 'lookback_period': :lookback_period}::variant);
-let sql varchar := 'insert into analysis.autorouting_history(query_signature, query_text, database_name, schema_name, target_warehouse, run_id, input)
+let sql varchar := 'insert into analysis.autorouting_history(query_signature, query_text, database_name, schema_name, target_warehouse, run_id, input, reward, state, action)
 with raw as (
 select
        warehouse_name,
@@ -132,7 +136,10 @@ t.database_name as database_name,
 t.schema_name as schema_name,
 concat(?, t.next_warehouse_size) as target_warehouse,
 ? as run_id,
-parse_json(?) as input
+parse_json(?) as input,
+t.reward as reward,
+t.state as state,
+t.action as action
 from raw, table(analysis.choose_warehouse(
 		warehouse_name,
 		warehouse_size,
