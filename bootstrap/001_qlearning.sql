@@ -10,7 +10,7 @@ declare
     WAREHOUSES_NOT_CONTIGUOUS EXCEPTION(-20502, 'Warehouses are not contiguous with the given prefix');
 begin
     let prefix_m string := prefix || '%';
-    execute immediate 'SHOW WAREHOUSES LIKE \'' || :prefix_m || '\'';
+    execute immediate 'SHOW WAREHOUSES LIKE \'' || :prefix_m || '%\'';
 
     let rs resultset := (
     with whouses as (
@@ -110,7 +110,7 @@ let max_warehouse_size varchar := vobj['max_wh'];
 let min_warehouse_size varchar := vobj['min_wh'];
 let nextrun number := (select analysis.autorouting_seq.nextval);
 let input variant := (select {'label_name': :label_name, 'warehouse_prefix': :warehouse_prefix, 'hint': :hint, 'initial_warehouse': :initial_warehouse, 'lookback_period': :lookback_period}::variant);
-let sql varchar := 'insert into analysis.autorouting_history(query_signature, query_text, database_name, schema_name, target_warehouse, run_id, input)
+let sql varchar := 'insert into analysis.autorouting_history(query_signature, query_text, database_name, schema_name, target_warehouse, run_id, input, reward, state, action)
 with raw as (
 select
        warehouse_name,
