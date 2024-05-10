@@ -2,7 +2,7 @@ import pandas
 from typing import Dict, Any, Tuple, Optional, List, Iterable, Hashable
 import numpy as np
 import json
-from .utils import sizes, model_run_times, short_sizes
+from .utils import sizes, model_run_times, size_aliases
 from .rewards import RewardCandidateB
 from .qlearn import QlearningIterate
 
@@ -34,7 +34,7 @@ def get_hint(df):
 
 
 def get_return_df(df: pandas.Series, next_wh: str, wsize: str, reward: float, state: int, action: int):
-    return {'next_warehouse_size': short_sizes[next_wh] if next_wh is not None else None,
+    return {'next_warehouse_size': size_aliases[next_wh] if next_wh is not None else None,
             'warehouse_size': wsize,
             'query_text': df['QUERY_TEXT'],
             'database_name': df['DATABASE_NAME'],

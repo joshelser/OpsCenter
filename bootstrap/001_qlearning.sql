@@ -9,36 +9,35 @@ declare
     NO_WAREHOUSES_WITH_PREFIX EXCEPTION(-20501, 'No warehouse with the given prefix');
     WAREHOUSES_NOT_CONTIGUOUS EXCEPTION(-20502, 'Warehouses are not contiguous with the given prefix');
 begin
-    let prefix_m string := prefix || '%';
-    execute immediate 'SHOW WAREHOUSES LIKE \'' || :prefix_m || '%\'';
+    execute immediate 'SHOW WAREHOUSES LIKE \'' || :prefix || '%\'';
 
     let rs resultset := (
     with whouses as (
         select $1 as name, $4 as size
         from table(RESULT_SCAN(LAST_QUERY_ID()))
     ),
-    size_info (size, credit) as (
-        select * from values ('X-Small', 1), ('Small', 2), ('Medium', 3), ('Large', 4), ('X-Large', 5),
-            ('2X-Large', 6), ('3X-Large', 7), ('4X-Large', 8), ('5X-Large', 9), ('6X-Large', 10)
+    size_info (size, size_alias, size_numeric) as (
+        select * from values ('X-Small', 'XSMALL', 1), ('Small', 'SMALL', 2), ('Medium', 'MEDIUM', 3), ('Large', 'LARGE', 4), ('X-Large', 'XLARGE', 5),
+            ('2X-Large', 'X2LARGE', 6), ('3X-Large', 'X3LARGE', 7), ('4X-Large', 'X4LARGE', 8), ('5X-Large', 'X5LARGE', 9), ('6X-Large', 'X6LARGE', 10)
     ),
-    wh_size_info (name, size, credit) as (
-        select whouses.name, size_info.size, size_info.credit
+    wh_size_info (name, size, size_alias, size_numeric) as (
+        select whouses.name, size_info.size, size_info.size_alias, size_info.size_numeric
         from whouses
             join size_info
             on size_info.size = whouses.size
     )
-    select name, size, credit
+    select name, size, size_alias, size_numeric
     from wh_size_info
-    where ENDSWITH(name, size)
+    where ENDSWITH(name, size_alias)
     -- TODO use name = prefix || size
-    order by credit
+    order by size_numeric
     );
 
     let prev_sz INT := -1;
     let c1 cursor for rs;
 
     for record in c1 DO
-        prev_sz := record.credit;
+        prev_sz := record.size_numeric;
         min_sz_str := record.size;
         max_sz_str := min_sz_str;
         break;
@@ -49,10 +48,10 @@ begin
     end if;
 
     for record in c1 DO
-        if (prev_sz + 1 != record.credit) then
+        if (prev_sz + 1 != record.size_numeric) then
             raise WAREHOUSES_NOT_CONTIGUOUS;
         end if;
-        prev_sz := record.credit;
+        prev_sz := record.size_numeric;
         max_sz_str := record.size;
     end for;
 
