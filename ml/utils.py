@@ -34,17 +34,17 @@ sizes = {
     '5X-Large': 8,
     '6X-Large': 9,
 }
-short_sizes = {
-    'X-Small': 'XS',
-    'Small': 'S',
-    'Medium': 'M',
-    'Large': 'L',
-    'X-Large': 'XL',
-    '2X-Large': '2XL',
-    '3X-Large': '3XL',
-    '4X-Large': '4XL',
-    '5X-Large': '5XL',
-    '6X-Large': '6XL',
+size_aliases = {
+    'X-Small': 'XSMALL',
+    'Small': 'SMALL',
+    'Medium': 'MEDIUM',
+    'Large': 'LARGE',
+    'X-Large': 'XLARGE',
+    '2X-Large': 'X2LARGE',
+    '3X-Large': 'X3LARGE',
+    '4X-Large': 'X4LARGE',
+    '5X-Large': 'X5LARGE',
+    '6X-Large': 'X6LARGE',
 }
 reverse_sizes = [k for k, _ in sizes.items()]
 # 6 model sizes
