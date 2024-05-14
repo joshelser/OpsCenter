@@ -1,4 +1,5 @@
-CREATE OR REPLACE FUNCTION tools.wh_fill(decayTickCount float, ordinalCount float, positions ARRAY, sizes ARRAY)  
+
+CREATE OR REPLACE FUNCTION tools.wh_fill(decayTickCount float, ordinalCount float, positions ARRAY, sizes ARRAY)
 RETURNS STRING
 LANGUAGE JAVASCRIPT
 COMMENT='Collects a list of query executions by tick and combines them into a single string indiciating executions and size status.'
