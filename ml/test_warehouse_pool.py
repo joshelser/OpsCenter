@@ -6,7 +6,9 @@ from pandas.testing import assert_frame_equal
 
 class Test(TestCase):
     def test_compute_set_of_warehouses(self):
-        from bootstrap.warehouse_pool import compute_set_of_warehouses
+        from ml.warehouse_pool import compute_set_of_warehouses
+        with self.assertRaises(KeyError):
+            compute_set_of_warehouses("UnknownSize", 15)
         with self.assertRaises(ValueError):
             compute_set_of_warehouses("X-Large", 15)
         assert_frame_equal(compute_set_of_warehouses("Small", 2), pd.DataFrame({"warehouse_size": ["Small"], "num_clusters": [1]}))
