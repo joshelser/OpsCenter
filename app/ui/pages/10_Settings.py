@@ -286,16 +286,27 @@ with reset:
         """
         )
         bar.progress(
-            10,
-            text="Old activity removed, refreshing warehouse events. This may take a bit.",
+            25,
+            text="Old activity removed, starting background refresh of warehouse events.",
         )
-        connection.execute("call internal.refresh_warehouse_events(true);")
+        connection.execute("EXECUTE TASK TASKS.WAREHOUSE_EVENTS_MAINTENANCE;")
+
         bar.progress(
-            30,
-            text="Warehouse events refreshed, refreshing queries. This may take a bit.",
+            50,
+            text="Starting background refresh of queries.",
         )
-        connection.execute("call internal.refresh_queries(true);")
-        bar.progress(100, text="All events refreshed.")
+        connection.execute("EXECUTE TASK TASKS.QUERY_HISTORY_MAINTENANCE")
+
+        bar.progress(80, text="Starting background refresh of other data sources.")
+        connection.execute("EXECUTE TASK TASKS.SIMPLE_DATA_EVENTS_MAINTENANCE;")
+
+        bar.progress(90, text="Starting background refresh of warehouse loads.")
+        connection.execute("EXECUTE TASK TASKS.WAREHOUSE_LOAD_MAINTENANCE;")
+
+        bar.progress(
+            100,
+            text="All refresh tasks started. Monitor for completion on the Home page.",
+        )
         msg.info("Reset Complete.")
 
 with initial_probes:
