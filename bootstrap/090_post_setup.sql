@@ -532,6 +532,11 @@ CREATE OR REPLACE TASK TASKS.WAREHOUSE_SCHEDULING
     as
     call INTERNAL.UPDATE_WAREHOUSE_SCHEDULES(NULL, NULL);
 
+call task_queue.create_tasks();
+create or replace task task_queue.backfill_qtags
+    as
+        call internal.update_qtag_day();
+
 -- This clarifies that the post setup script has been executed to match the current installed version.
 let version string := (select internal.get_version());
 call internal.set_config('post_setup', :version);
@@ -547,6 +552,7 @@ alter task TASKS.SIMPLE_DATA_EVENTS_MAINTENANCE resume;
 alter task TASKS.QUERY_HISTORY_MAINTENANCE resume;
 alter task TASKS.UPGRADE_CHECK resume;
 alter task TASKS.WAREHOUSE_LOAD_MAINTENANCE resume;
+alter task TASK_QUEUE.TASK_QUEUE_MAINTENANCE resume;
 -- Do not enable any warehouse_scheduling tasks. They are programmatically resumed when a warehouse schedule is enabled.
 
 -- Kick off the maintenance tasks.

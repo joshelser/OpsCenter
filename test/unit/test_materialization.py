@@ -66,9 +66,10 @@ def test_query_history_migration(conn):
         # Verify that the columns are in the correct order after running MIGRATE_QUERIES
         query = (
             "select column_name, data_type from information_schema.columns where table_schema = "
-            + "'INTERNAL_REPORTING_MV' and table_name = 'QUERY_HISTORY_COMPLETE_AND_DAILY' order by ordinal_position desc limit 9;"
+            + "'INTERNAL_REPORTING_MV' and table_name = 'QUERY_HISTORY_COMPLETE_AND_DAILY' order by ordinal_position desc limit 10;"
         )
         rows = cur.execute(query).fetchall()
+        print(rows)
         assert rows[-4][0] == "QUERY_PARAMETERIZED_HASH_VERSION"
         assert rows[-4][1] == "NUMBER"
 
