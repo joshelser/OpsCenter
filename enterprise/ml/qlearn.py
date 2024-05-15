@@ -1,17 +1,36 @@
 from typing import Optional, Dict, Any, Callable, Tuple
 import numpy as np
 from ml.rewards import reward_candidate_a
-from ml.utils import get_state_from_names, get_pos_from_state, sizes, model_run_times, reverse_sizes
+from ml.utils import (
+    get_state_from_names,
+    get_pos_from_state,
+    sizes,
+    model_run_times,
+    reverse_sizes,
+)
+
 
 class QlearningIterate:
-    def __init__(self, num_states: int, num_actions: int, max_warehouse_size: Optional[str] = None, min_warehouse_size: Optional[str] = None,
-                 reward_func: Callable[[int, int, float, float, int], float] = reward_candidate_a,
-                 **hint: Dict[str, Any]):
+    def __init__(
+        self,
+        num_states: int,
+        num_actions: int,
+        max_warehouse_size: Optional[str] = None,
+        min_warehouse_size: Optional[str] = None,
+        reward_func: Callable[
+            [int, int, float, float, int], float
+        ] = reward_candidate_a,
+        **hint: Dict[str, Any]
+    ):
         self.last_cost: float = 0
         self.last_state: int = 0
         self.last_action: int = 0
-        self.max_warehouse_size_idx: int = 9 if max_warehouse_size is None else sizes[max_warehouse_size]
-        self.min_warehouse_size_idx: int = 0 if min_warehouse_size is None else sizes[min_warehouse_size]
+        self.max_warehouse_size_idx: int = (
+            9 if max_warehouse_size is None else sizes[max_warehouse_size]
+        )
+        self.min_warehouse_size_idx: int = (
+            0 if min_warehouse_size is None else sizes[min_warehouse_size]
+        )
         self.learner = QLearner(num_states=num_states, num_actions=num_actions, **hint)
         self.cost_count_history = np.zeros(num_states)
         self.cost_sum_history = np.zeros(num_states)
@@ -25,22 +44,35 @@ class QlearningIterate:
         self.cost_count_history[self.last_state] += 1
         return self.next_warehouse_name()
 
-    def historical_cost_per_model_run_time(self, warehouse_size: str, model_run_time: str) -> Optional[float]:
+    def historical_cost_per_model_run_time(
+        self, warehouse_size: str, model_run_time: str
+    ) -> Optional[float]:
         s = get_state_from_names(warehouse_size, model_run_time)
         if self.cost_count_history[s] == 0:
             return None
         return np.divide(self.cost_sum_history[s], self.cost_count_history[s])
 
-    def historical_cost(self, warehouse_size: str) -> Tuple[Optional[float], Optional[str]]:
-        s = [get_state_from_names(warehouse_size, model_run_time) for model_run_time in model_run_times]
+    def historical_cost(
+        self, warehouse_size: str
+    ) -> Tuple[Optional[float], Optional[str]]:
+        s = [
+            get_state_from_names(warehouse_size, model_run_time)
+            for model_run_time in model_run_times
+        ]
         if np.sum(self.cost_count_history[s]) == 0:
             return None, None
-        c = np.divide(self.cost_sum_history[s], self.cost_count_history[s], out=np.zeros_like(self.cost_sum_history[s]),
-                      where=self.cost_count_history[s] != 0)
+        c = np.divide(
+            self.cost_sum_history[s],
+            self.cost_count_history[s],
+            out=np.zeros_like(self.cost_sum_history[s]),
+            where=self.cost_count_history[s] != 0,
+        )
         idx = np.nanargmax(c)
         return c[idx], model_run_times[idx]
 
-    def iterate(self, warehouse_size: str, model_run_time: str, cost: float) -> Tuple[str, float]:
+    def iterate(
+        self, warehouse_size: str, model_run_time: str, cost: float
+    ) -> Tuple[str, float]:
         s_prime = get_state_from_names(warehouse_size, model_run_time)
         s = self.last_state
         a = self.last_action
@@ -73,12 +105,27 @@ class QlearningIterate:
     def calculate_reward(self, cost: float, s_prime: int) -> float:
         _, prev_model_run_time_idx = get_pos_from_state(self.last_state)
         _, model_run_time_idx = get_pos_from_state(s_prime)
-        r = self.reward_func(prev_model_run_time_idx, model_run_time_idx, self.last_cost, cost, self.last_action)
+        r = self.reward_func(
+            prev_model_run_time_idx,
+            model_run_time_idx,
+            self.last_cost,
+            cost,
+            self.last_action,
+        )
         return r
 
 
 class QLearner:
-    def __init__(self, num_states, num_actions, alpha=0.9, gamma=0.1, epsilon=0.9, xi=0.99, **kwargs):
+    def __init__(
+        self,
+        num_states,
+        num_actions,
+        alpha=0.9,
+        gamma=0.1,
+        epsilon=0.9,
+        xi=0.99,
+        **kwargs
+    ):
         self.num_states = num_states
         self.num_actions = num_actions
         self.alpha = alpha
@@ -108,63 +155,67 @@ class QLearner:
         self.epsilon *= self.xi
 
 
-qtable = np.array([[-1., -1., 1.],
-                   [0.5, -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [-1., 1., 1.],
-                   [0.5, 0.1, 0.5],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [-1., 1., 1.],
-                   [0.5, 0.1, 0.5],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [-1., 1., 1.],
-                   [0.5, 0.1, 0.5],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [-1., 1., 1.],
-                   [0.5, 0.1, 0.5],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [-1., 1., 1.],
-                   [0.5, 0.1, 0.5],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [-1., 1., 1.],
-                   [0.5, 0.1, 0.5],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [-1., 1., 1.],
-                   [0.5, 0.1, 0.5],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [-1., 1., 1.],
-                   [0.5, 0.1, 0.5],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [1., -1., 0.01],
-                   [-1., 1., 1.],
-                   [-1., 0.1, 0.5],
-                   [-1., -1., 0.01],
-                   [-1., -1., 0.01],
-                   [-1., -1., 0.01],
-                   [-1., -1., 0.01]])
+qtable = np.array(
+    [
+        [-1.0, -1.0, 1.0],
+        [0.5, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [-1.0, 1.0, 1.0],
+        [0.5, 0.1, 0.5],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [-1.0, 1.0, 1.0],
+        [0.5, 0.1, 0.5],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [-1.0, 1.0, 1.0],
+        [0.5, 0.1, 0.5],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [-1.0, 1.0, 1.0],
+        [0.5, 0.1, 0.5],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [-1.0, 1.0, 1.0],
+        [0.5, 0.1, 0.5],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [-1.0, 1.0, 1.0],
+        [0.5, 0.1, 0.5],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [-1.0, 1.0, 1.0],
+        [0.5, 0.1, 0.5],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [-1.0, 1.0, 1.0],
+        [0.5, 0.1, 0.5],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [1.0, -1.0, 0.01],
+        [-1.0, 1.0, 1.0],
+        [-1.0, 0.1, 0.5],
+        [-1.0, -1.0, 0.01],
+        [-1.0, -1.0, 0.01],
+        [-1.0, -1.0, 0.01],
+        [-1.0, -1.0, 0.01],
+    ]
+)

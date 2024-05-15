@@ -16,7 +16,9 @@ def get_warehouse_credit_map():
     }
 
 
-def compute_set_of_warehouses(initial_warehouse_size: str, credit_cap: int) -> pd.DataFrame:
+def compute_set_of_warehouses(
+    initial_warehouse_size: str, credit_cap: int
+) -> pd.DataFrame:
     warehouse_credit_map = get_warehouse_credit_map()
     initial_wh_credits = warehouse_credit_map[initial_warehouse_size]
 
@@ -33,7 +35,8 @@ def compute_set_of_warehouses(initial_warehouse_size: str, credit_cap: int) -> p
             remaining_credits -= initial_wh_credits
 
         while (remaining_credits > 0 and prev_smaller_wh_credits > 1) or (
-                remaining_credits > prev_larger_wh_credits and prev_larger_wh_credits < 512):
+            remaining_credits > prev_larger_wh_credits and prev_larger_wh_credits < 512
+        ):
             if prev_smaller_wh_credits > 1:
                 wh_credit = prev_smaller_wh_credits / 2
                 if remaining_credits >= wh_credit:
@@ -59,4 +62,6 @@ def compute_set_of_warehouses(initial_warehouse_size: str, credit_cap: int) -> p
             num_clusters.append(count)
             warehouse_sizes.append(wh_size)
 
-    return pd.DataFrame({'warehouse_size': warehouse_sizes, 'num_clusters': num_clusters})
+    return pd.DataFrame(
+        {"warehouse_size": warehouse_sizes, "num_clusters": num_clusters}
+    )

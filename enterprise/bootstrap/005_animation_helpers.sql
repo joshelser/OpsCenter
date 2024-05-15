@@ -21,12 +21,12 @@ AS $$
       result[i] = lastKnownChar.toUpperCase();
     } else {
       result[i] = lastKnownChar;
-      
+
     }
     if((lastUpdate+DECAYTICKCOUNT) < i && i > lastPos) {
         lastKnownChar = '-';
     }
-    
+
   }
   return result.join('');
 $$;

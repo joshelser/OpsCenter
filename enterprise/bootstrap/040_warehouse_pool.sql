@@ -1,3 +1,4 @@
+
 CREATE TABLE INTERNAL.WH_POOLS IF NOT EXISTS(
     name text,
     warehouses array

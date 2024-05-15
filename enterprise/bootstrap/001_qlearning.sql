@@ -125,7 +125,7 @@ and execution_status = \'SUCCESS\' -- dont consider failed queries
 and query_parameterized_hash is not null -- filter out queries w/o a hash
 and warehouse_size is not null -- no warehouse means a metadata only query and we can ignore it (cant route anyways)
 )
-select 
+select
 query_parameterized_hash as query_signature,
 t.query_text as query_text,
 t.database_name as database_name,
