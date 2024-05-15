@@ -96,20 +96,17 @@ create table if not exists analysis.autorouting_history (query_signature varchar
 alter table analysis.autorouting_history add column if not exists reward float;
 alter table analysis.autorouting_history add column if not exists state number;
 alter table analysis.autorouting_history add column if not exists action number;
+alter table analysis.autorouting_history add column if not exists target_warehouse_size varchar;
 
-create or replace procedure analysis.refresh_autorouting(label_name varchar, warehouse_prefix varchar, hint object, initial_warehouse varchar, lookback_period varchar)
-returns table(query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar)
+create or replace procedure analysis.refresh_autorouting_core(label_name varchar, warehouse_prefix varchar, hint object,
+    initial_warehouse varchar, lookback_period varchar, min_warehouse_size varchar default 'X-Small', max_warehouse_size varchar default '6X-Large')
+returns number
 language sql
-as 
+as
 begin
-let json_str string := '{}';
-call analysis.get_min_max_warehouse_sizes(:warehouse_prefix) INTO :json_str;
-let vobj variant := PARSE_JSON(json_str);
-let max_warehouse_size varchar := vobj['max_wh'];
-let min_warehouse_size varchar := vobj['min_wh'];
 let nextrun number := (select analysis.autorouting_seq.nextval);
 let input variant := (select {'label_name': :label_name, 'warehouse_prefix': :warehouse_prefix, 'hint': :hint, 'initial_warehouse': :initial_warehouse, 'lookback_period': :lookback_period}::variant);
-let sql varchar := 'insert into analysis.autorouting_history(query_signature, query_text, database_name, schema_name, target_warehouse, run_id, input, reward, state, action)
+let sql varchar := 'insert into analysis.autorouting_history(query_signature, query_text, database_name, schema_name, target_warehouse, target_warehouse_size, run_id, input, reward, state, action)
 with raw as (
 select
        warehouse_name,
@@ -134,6 +131,7 @@ t.query_text as query_text,
 t.database_name as database_name,
 t.schema_name as schema_name,
 concat(?, t.next_warehouse_size) as target_warehouse,
+t.next_warehouse_size as target_warehouse_size,
 ? as run_id,
 parse_json(?) as input,
 t.reward as reward,
@@ -153,6 +151,36 @@ from raw, table(analysis.choose_warehouse(
         ?, ?) over (partition by query_parameterized_hash order by start_time)) t';
 let tmpl_sql varchar := (select tools.templatejs(:sql, {'label_name': :label_name, 'lookback_period': :lookback_period}));
 let res resultset := (execute immediate :tmpl_sql using (warehouse_prefix, nextrun, input, hint, min_warehouse_size, max_warehouse_size));
+return nextrun;
+end;
+
+-- this is used by the auto-routing v1
+create or replace procedure analysis.refresh_autorouting(label_name varchar, warehouse_prefix varchar, hint object, initial_warehouse varchar, lookback_period varchar)
+returns table(query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar)
+language sql
+as
+begin
+let json_str string := '{}';
+call analysis.get_min_max_warehouse_sizes(:warehouse_prefix) INTO :json_str;
+let vobj variant := PARSE_JSON(json_str);
+let max_warehouse_size varchar := vobj['max_wh'];
+let min_warehouse_size varchar := vobj['min_wh'];
+let nextrun number := 0;
+call analysis.refresh_autorouting_core(:label_name, :warehouse_prefix, :hint, :initial_warehouse, :lookback_period, :min_warehouse_size, :max_warehouse_size) into :nextrun;
+
 let rettbl resultset := (select query_signature, query_text, database_name, schema_name, target_warehouse from analysis.autorouting_history where run_id = :nextrun);
+return table(rettbl);
+end;
+
+-- this will be used by auto-routing v2
+create or replace procedure analysis.refresh_auto_routing(label_name varchar, hint object, initial_warehouse varchar, lookback_period varchar)
+returns table(query_signature varchar, query_text varchar, database_name varchar, schema_name varchar, target_warehouse varchar)
+language sql
+as
+begin
+let nextrun number := 0;
+call analysis.refresh_autorouting_core(:label_name, 'v2dummy_', :hint, :initial_warehouse, :lookback_period) into :nextrun;
+
+let rettbl resultset := (select query_signature, query_text, database_name, schema_name, target_warehouse_size from analysis.autorouting_history where run_id = :nextrun);
 return table(rettbl);
 end;
